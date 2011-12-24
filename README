@@ -1,10 +1,10 @@
 # noir-async
 
-FIXME: write description
+Support for asynchronous requests / responses in Noir using Aleph
 
 ## Usage
 
-FIXME: write
+To run tests `lein midje`
 
 ## License
 
