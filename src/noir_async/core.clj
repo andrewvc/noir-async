@@ -9,7 +9,7 @@
   (on-receive [this handler])
   (on-close   [this handler]))
 
-(defrecord WebSocketConnection [request-channel]
+(defrecord WebSocketConnection [request-channel ring-request]
   MessageStreamPattern
   (send-message [this message] 
     (enqueue request-channel message))
@@ -18,31 +18,31 @@
   (on-close [this handler]
     (on-closed request-channel handler)))
 
-(defn create-websocket-connection [request-channel]
-  (WebSocketConnection. request-channel))
+(defn create-websocket-connection [request-channel ring-request]
+  (WebSocketConnection. request-channel ring-request))
 
 (defprotocol RequestReplyPattern
   "A protocol suitable for an asynchronous connection
    that will receive a single response"
   (respond [this response]))
 
-(defrecord PageConnection [request-channel]
+(defrecord PageConnection [request-channel ring-requent]
   RequestReplyPattern
   (respond [this response]
     (enqueue-and-close request-channel
         (cond (string? response) {:status 200 :body response}
               :else              response))))
 
-(defn create-page-connection [request-channel]
-  (PageConnection. request-channel))
+(defn create-page-connection [request-channel ring-request]
+  (PageConnection. request-channel ring-request))
 
 (defmacro defasync-route
   "Base for handling an asynchronous route."
   [conn-class path request-bindings conn-binding & body]
-  `(custom-handler ~path ~request-bindings
+  `(custom-handler ~path {~request-bindings :params}
      (wrap-aleph-handler
-       (fn [ch# _#]
-         (let [~conn-binding (new ~conn-class ch#)]
+       (fn [ch# ring-request#]
+         (let [~conn-binding (new ~conn-class ch# ring-request#)]
            ~@body)))))
 
 (defmacro defpage-async

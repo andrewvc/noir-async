@@ -4,7 +4,32 @@ Support for asynchronous requests / responses in Noir using Aleph
 
 ## Usage
 
+noir-async supports a simplified API for asynchronous requests and websockets.
+Support for chunked responses, and parsing streaming request bodies is coming
+soon.
+
+Examples:
+
+```clojure
+; Defining an asynchronous page with a single response
+(defpage-async "/page/:foo" {:keys [foo]} conn
+  (respond conn (str "ohai! " foo)))
+
+; Defining a websocket
+(defwebsocket "/sockets/:sname" {:keys [sname]} conn
+  (send-message conn "Hello client!")
+  (on-receive conn (fn [msg] (println "Got a mesage!")))
+  (on-close conn (fn [] (println "Socket down!"))))
+
+; Retreiving the raw channel and header information from aleph
+; in an async handler
+(let [rc (:request-channel conn)
+      rh (:ring-request conn)] ...)
+```
+
 To run tests `lein midje`
+
+## Setting up server.clj
 
 In your server.clj, you'll want to use aleph as a server explicitly.
 Be sure to replace noir-async-chat with the appropriate namespace.
