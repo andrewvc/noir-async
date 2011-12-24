@@ -12,7 +12,6 @@
 (defrecord WebSocketConnection [request-channel]
   MessageStreamPattern
   (send-message [this message] 
-    (println (str "ohai:" message))
     (enqueue request-channel message))
   (on-receive [this handler]
     (receive-all request-channel handler))
