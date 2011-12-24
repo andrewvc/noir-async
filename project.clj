@@ -4,4 +4,5 @@
                  [noir "1.2.2-SNAPSHOT"]
                  [aleph "0.2.1-SNAPSHOT"] ]
   :dev-dependencies [[midje "1.3.1"]
-                     [lein-midje "1.0.7"]])
+                     [lein-midje "1.0.7"]
+                     [lein-clojars "0.7.0"]])
