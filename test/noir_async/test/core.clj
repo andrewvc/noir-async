@@ -42,13 +42,13 @@
   (async/on-close   conn (fn [] (swap! close-call-count inc)))
 
   (fact "on-receive should trigger callback for all messages"
-    (do (enqueue test-ch "amsg")
-        (some #{"amsg"} @ws-messages-recvd)) => truthy)
+    (do (enqueue test-ch ...enqueued-msg...)
+        (some #{...enqueued-msg...} @ws-messages-recvd)) => truthy)
  
   (fact "send-message should enqueue the message onto the channel"
-    (let [msg "send-message-msg"]
-      (async/send-message conn msg)
-      (some #{msg} @ws-messages-recvd)) => truthy)
+    (let [sent-msg ...sent-msg...]
+        (async/send-message conn sent-msg)
+        (some #{sent-msg} @ws-messages-recvd)) => truthy)
  
   (fact "on-close should be triggered when the channel closes"
     (do (close test-ch) @close-call-count) => 1))
