@@ -48,7 +48,16 @@
   "Calls handler taking a message as an argument on message receipt."
   [handler]
   (enforce-route-type! :websocket)
-  (receive-all *request-channel* handler))
+  ; Since the handler may be called on another thread, and we may need to
+  ; call send-message there, we'll have to enforce the bound vars with a closure.
+  ; This is a bit of a hack.
+  (let [rc *request-channel*
+        rt *route-type*]
+    (receive-all *request-channel* 
+      (fn [msg]
+        (binding [*request-channel* rc
+                  *route-type*      rt]
+          (handler msg))))))
 
 (defn on-close
   "Calls handler when the current websocket closes"
