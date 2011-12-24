@@ -54,7 +54,7 @@
   "Calls handler when the current websocket closes"
   [handler]
   (enforce-route-type! :websocket)
-  (on-closed *request-channel* handler))
+  (on-closed *request-channel* (fn [& _] (handler))))
 
 (defn send-message
   "Sends a message to the client across the current websocket connection"
