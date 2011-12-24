@@ -1,0 +1,10 @@
+pom.xml
+*jar
+/lib/
+/classes/
+.lein-deps-sum
+.DS_Store
+*.swp
+*.swn
+*.swo
+.lein-failures
