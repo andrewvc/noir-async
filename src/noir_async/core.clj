@@ -3,32 +3,47 @@
         noir.core
         lamina.core))
 
-(def ^:dynamic *route-type* nil)
-(def ^:dynamic *request-channel* nil)
-(def ^:dynamic *response-channel* nil)
+(defprotocol MessageStreamPattern
+  "Protocol for a bidirectional message-based stream"
+  (send-message [this message])
+  (on-receive [this handler])
+  (on-close   [this handler]))
 
-(defn- enforce-route-type! [& types]
-  "Make sure we're in the correct type of handler, or raise an exception"
-  (cond (not (some #{*route-type*} types))
-        (throw (Exception. (str "This async function is only available within "
-                                (apply str types) " not " *route-type*)))))
+(defrecord WebSocketConnection [request-channel]
+  MessageStreamPattern
+  (send-message [this message] 
+    (println (str "ohai:" message))
+    (enqueue request-channel message))
+  (on-receive [this handler]
+    (receive-all request-channel handler))
+  (on-close [this handler]
+    (on-closed request-channel handler)))
 
-(defn respond [response]
-  "Responds to a route declared with defpage-async.
-   Must be used within defpage-async."
-  (enforce-route-type! :page)
-  (enqueue-and-close *request-channel*
-    (cond (string? response) {:status 200 :body response}
-          :else              response)))
+(defn create-websocket-connection [request-channel]
+  (WebSocketConnection. request-channel))
+
+(defprotocol RequestReplyPattern
+  "A protocol suitable for an asynchronous connection
+   that will receive a single response"
+  (respond [this response]))
+
+(defrecord PageConnection [request-channel]
+  RequestReplyPattern
+  (respond [this response]
+    (enqueue-and-close request-channel
+        (cond (string? response) {:status 200 :body response}
+              :else              response))))
+
+(defn create-page-connection [request-channel]
+  (PageConnection. request-channel))
 
 (defmacro defasync-route
   "Base for handling an asynchronous route."
-  [route-type path request-bindings & body]
+  [conn-class path request-bindings conn-binding & body]
   `(custom-handler ~path ~request-bindings
-    (wrap-aleph-handler
-      (fn [ch# _#]
-        (binding [*request-channel* ch#
-                  *route-type*      ~route-type]
+     (wrap-aleph-handler
+       (fn [ch# _#]
+         (let [~conn-binding (new ~conn-class ch#)]
            ~@body)))))
 
 (defmacro defpage-async
@@ -41,36 +56,10 @@
   Example:
     (defpage-async \"/foo/bar/:baz\" [baz :baz]
       (respond {:status 200 :body \"ohai\"))"
-  [path request-bindings & body]
-  `(defasync-route :page ~path ~request-bindings ~@body))
+  [path request-bindings conn-binding & body]
+  `(defasync-route PageConnection ~path ~request-bindings ~conn-binding ~@body))
 
-(defn on-receive 
-  "Calls handler taking a message as an argument on message receipt."
-  [handler]
-  (enforce-route-type! :websocket)
-  ; Since the handler may be called on another thread, and we may need to
-  ; call send-message there, we'll have to enforce the bound vars with a closure.
-  ; This is a bit of a hack.
-  (let [rc *request-channel*
-        rt *route-type*]
-    (receive-all *request-channel* 
-      (fn [msg]
-        (binding [*request-channel* rc
-                  *route-type*      rt]
-          (handler msg))))))
-
-(defn on-close
-  "Calls handler when the current websocket closes"
-  [handler]
-  (enforce-route-type! :websocket)
-  (on-closed *request-channel* (fn [& _] (handler))))
-
-(defn send-message
-  "Sends a message to the client across the current websocket connection"
-  [message]
-  (enforce-route-type! :websocket)
-  (enqueue *request-channel* message))
-  
+ 
 (defmacro defwebsocket
   "Defines a path for use as a websocket.
    The function body is executed 'on-open'.
@@ -86,4 +75,4 @@
       (on-receive (fn [msg] (send-msg \"Pong for:  \" msg)))
       (on-close (fn [] (println \"Socket closed!\"))))"
   [path request-bindings & body]
-  `(defasync-route :websocket ~path ~request-bindings ~@body))
+  `(defasync-route WebSocketConnection ~path ~request-bindings ~@body))
