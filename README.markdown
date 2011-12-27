@@ -10,7 +10,7 @@ soon.
 
 It's easy to install using leiningen: `[noir-async "0.1.0"]`
 
-Examples:
+Examples (for a fuller example see: [noir-async-chat](https://github.com/andrewvc/noir-async-chat ) )
 
 ```clojure
 ; Defining an asynchronous page with a single response
