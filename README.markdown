@@ -8,7 +8,7 @@ noir-async supports a simplified API for asynchronous requests and websockets.
 Support for chunked responses, and parsing streaming request bodies is coming
 soon.
 
-It's easy to install using leiningen: `[noir-async "0.1.0"]`
+It's easy to install using leiningen: `[noir-async "0.1.1"]`
 
 Examples (for a fuller example see: [noir-async-chat](https://github.com/andrewvc/noir-async-chat ) )
 
