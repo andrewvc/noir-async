@@ -12,10 +12,14 @@
   "Run a function after a delay"
   ([millis func] (set-timeout default-timer millis func))
   ([timer millis func]
-    (.schedule timer (fn->timer-task func) (long millis))))
+    (let [timer-task (fn->timer-task func)]
+      (.schedule timer timer-task (long millis))
+      timer-task)))
 
 (defn set-interval
   "Repeatedly run a function"
   ([millis func] (set-interval default-timer millis func))
   ([timer millis func]
-    (.schedule timer (fn->timer-task func) (long 0) (long millis))))
+    (let [timer-task (fn->timer-task func)]
+      (.schedule timer timer-task  (long 0) (long millis))
+      timer-task)))

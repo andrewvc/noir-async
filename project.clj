@@ -1,4 +1,4 @@
-(defproject noir-async "0.1.0-SNAPSHOT"
+(defproject noir-async "0.1.1-SNAPSHOT"
   :description "Async support for noir. Based on Aleph"
   :dependencies [[org.clojure/clojure "1.3.0"]
                  [noir "1.3.0-alpha4"]
