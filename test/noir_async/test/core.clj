@@ -34,7 +34,7 @@
     (deref ws-body-call-count) => 1))
 
 (let [test-ch (channel)
-      conn (async/create-websocket-connection test-ch {:params {}})
+      conn (async/websocket-connection test-ch {:params {}})
       ws-messages-recvd (atom [])
       close-call-count (atom 0)]
    
