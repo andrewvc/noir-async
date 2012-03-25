@@ -14,46 +14,60 @@
   "Returns the downstream channel for a connection"
   (or response-channel request-channel))
 
+(defn regular?
+  "Is this a regular HTTP connection? I.E. Not a websocket"
+  [conn]
+  (= (:regular (:type conn))))
+
+(defn chunked?
+  "Is this connection in chunked mode?"
+  [conn]
+  (and (regular? conn)
+       @(:headers-sent conn)))
+
 (defn websocket?
   "Is the connection opened from the client as a websocket?"
-  [{r :ring-request}]
-  (boolean (:websocket r)))
+  [conn]
+  (= (:websocket (:type conn))))
+
+(defn closed?
+  "Is this connection closed?"
+  [conn]
+  (lc/closed? (:request-channel conn)))
 
 (defn close
   "Closes the connection. No more data can be sent / received after this"
   [{:keys [request-channel response-channel]}]
   (lc/close request-channel)
-  (when response-channel
-    (lc/close response-channel)))
+  (when-let [rc @response-channel] (lc/close rc)))
 
-(defn resp
-  "Respond to a request in one shot"
-  [conn response]
-  (if (and (not (websocket? conn)) 
-    (lc/enqueue-and-close (:request-channel conn) (format-response response))
-    (throw (Exception. "Attempted to call 'resp' on a websocket or chunked resp."))))
-
-(defn- valid-header-map?
-  [header-map]
-  (and
-   (map? header-map)
-   (not (:body header-map))))
-
-(defn resp-part
-  "Sends a message across a websocket or chunked connection"
-  [{:keys [request-channel response-channel state]} msg]
-  (if (websocket? conn)
-    (lc/enqueue request-channel msg)
-    (do
-      (cond
-       (not (compare-and-set! state :initialized :header-sent))
-         (lc/enqueue 
-       :else
-         (do 
-           (compare-and-set! response-channel nil (channel))
-           (if (valid-header-map? msg)
-             (lc/enqueue request-channel (assoc msg :body @response-channel))
-             (throw (Exception. "First message should be a valid header map")))
+(defn deliver-header
+  "Delivers a map as the header only. Used to initiate a chunked
+   connection."
+  [conn header-map]
+  (when (not (map? header-map))
+        (throw "Expected a map of header options!"))
+  (when (not (compare-and-set! (:headers-sent conn) false true))
+    (throw "Attempted to send a chunked header, but header already sent!"))
+  (let [resp-ch (lc/channel)
+        orig-body (:body header-map)
+        resp (assoc header-map :body resp-ch)]
+    ;; If teh user included a body in the map, we can deliver it here
+    (when orig-body
+      (lc/enqueue resp-ch) orig-body)
+    (compare-and-set! (:response-channel conn) nil resp-ch)
+    (lc/enqueue (:request-channel conn) resp)))
+    
+(defn deliver
+  "Respond with data"
+  [conn data]
+  (cond (websocket? conn)
+          (lc/enqueue (:request-channel conn) data)
+        (regular? conn)
+          (if (chunked? conn)
+            (lc/enqueue @(:response-channel conn) data)
+            ;; Lamina only lets you respond once unless chunked anyway
+            (lc/enqueue-and-close (:request-channel conn) data))))
 
 (defn on-close
   "Callback to invoke on connection close."
@@ -70,8 +84,8 @@
   {:request-channel request-channel
    :ring-request ring-request
    :response-channel (atom nil)
-   :state (atom :initialized)
-   :type (if (:websocket ring-request) :websocket :standard) })
+   :headers-sent? (atom false)
+   :type (if (:websocket ring-request) :websocket :regular) })
 
 (defmacro defasync-route
   "Base for handling an asynchronous route."
