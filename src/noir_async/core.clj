@@ -46,7 +46,15 @@
   (lc/close request-channel)
   (when-let [rc @response-channel] (lc/close rc)))
 
-(defn apush-header
+
+(defn- writable-channel
+  "Returns the writable channel in a connection"
+  [{:keys [request-channel response-channel] :as conn}]
+  (cond (websocket? conn) request-channel
+        (regular? conn) (if (chunked? conn) response-channel request-channel)
+        :else nil))
+
+(defn async-push-header
   "Delivers a map as the header only. Used to initiate a chunked
    connection. Chunks may be delivered via apush"
   [conn header-map]
@@ -57,20 +65,13 @@
   (let [resp-ch (lc/channel)
         orig-body (:body header-map)
         resp (assoc header-map :body resp-ch)]
-    ;; If teh user included a body in the map, we can deliver it here
+    ;; If the user included a body in the map, we can deliver it here
     (when orig-body
       (lc/enqueue resp-ch) orig-body)
     (compare-and-set! (:response-channel conn) nil resp-ch)
     (lc/enqueue (:request-channel conn) resp)))
 
-(defn- writable-channel
-  "Returns the writable channel in a connection"
-  [{:keys [request-channel response-channel] :as conn}]
-  (cond (websocket? conn) request-channel
-        (regular? conn) (if (chunked? conn) response-channel request-channel)
-        :else nil))
-
-(defn apush
+(defn async-push
   "Push data to the client.
    If it's a websocket this sends a message.
    If it's a normal connection, it sends an entire response in one shot.
@@ -94,7 +95,6 @@
   "Generates a new map representing a connection.
    Generally for internal use only."
   [request-channel ring-request]
-  (println "DEBUGCONN: " [request-channel ring-request])
   {:request-channel request-channel
    :ring-request ring-request
    :response-channel (atom nil)
@@ -102,7 +102,7 @@
    :type (if (:websocket ring-request) :websocket :regular) })
 
 (defmacro defaleph-handler
-  "Returns an fn suitable for raw use with aleph + a ring request"
+  "Returns an fn suitable for raw use with aleph + a ring request."
   [conn-binding & body]
   `(fn [ch# ring-request#]
      (let [~conn-binding (connection ch# ring-request#)]
@@ -110,7 +110,7 @@
 
 (defmacro defpage-async
   "Base for handling an asynchronous route."
-  [path request-bindings conn-binding & body]
-  `(nc/custom-handler ~path {~request-bindings :params}
-     (ah/wrap-aleph-handler
-      (defaleph-handler ~conn-binding ~@body))))
+  [route request-bindings conn-binding & body]
+  `(nc/custom-handler ~route {~request-bindings :params}
+                      (ah/wrap-aleph-handler
+                       (defaleph-handler ~conn-binding ~@body))))
