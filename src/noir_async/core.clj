@@ -46,7 +46,7 @@
 (defn regular?
   "Is this a regular HTTP connection? I.E. Not a websocket"
   [conn]
-  (= (:regular (:type conn))))
+  (= :regular (:type conn)))
 
 (defn chunked?
   "Is this connection in chunked mode?"
