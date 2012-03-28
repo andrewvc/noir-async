@@ -33,7 +33,7 @@
 (defn websocket?
   "Is the connection opened from the client as a websocket?"
   [conn]
-  (= (:websocket (:type conn))))
+  (= :websocket (:type conn)))
 
 (defn closed?
   "Is this connection closed?"
@@ -51,7 +51,7 @@
   "Returns the writable channel in a connection"
   [{:keys [request-channel response-channel] :as conn}]
   (cond (websocket? conn) request-channel
-        (regular? conn) (if (chunked? conn) response-channel request-channel)
+        (regular? conn) (if (chunked? conn) @response-channel request-channel)
         :else nil))
 
 (defn async-push-header
