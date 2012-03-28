@@ -1,15 +1,44 @@
+;; ## Seamless, concise, async webservices for clojure
+;;
+;; noir-async integrates the aleph async library into noir allowing asynchronous programming with minimal syntax.
+;;
+;; ##  Examples:
+;;
+;; Note: this syntax is the same as noir's but with an additional conn (connection) parameter used to send responses through.
+;;   
+;; An example route that responds in one shot. On standard HTTP requests you can only respond with one message.
+;;
+;;     (defpage-asyc "/route" [] conn
+;;      (async-push {:status 404 :body \"Couldn't find it!\"}))
+;;
+;; An example route that handles a websocket
+;;
+;;     (defpage-async "/echo" [] conn
+;;      (on-receive (fn [m] (async-push conn m))))
+;;
+;; Using async-push-header will start a multipart response
+;;
+;;     (defpage-asyc "/always-chunky" [] conn
+;;       (async-push-header conn {:status 200})
+;;       (async-push conn \"chunk one\")
+;;       (async-push conn \"chunk two\")
+;;       (close conn))
+;;
+;; Since it uses an identical interface for both websockets
+;; and regular HTTP, if you want to handle them differently be
+;; sure to use the websocket? and regular? functions to discern them.
 (ns noir-async.core
   (require [lamina.core :as lc]
            [aleph.http :as ah]
            [noir.core :as nc]))
 
 (defn- format-one-shot
-  "Format responses for a one shot response"
+  "Format responses for a one shot response."
   [response]
   (cond (string? response) {:status 200 :body response}
         :else              response))
 
-(defn- downstream-c4h
+(defn- downstream-ch
   [{:keys [request-channel response-channel]}]
   "Returns the downstream channel for a connection"
   (or response-channel request-channel))
@@ -48,15 +77,15 @@
 
 
 (defn- writable-channel
-  "Returns the writable channel in a connection"
+  "Returns the a connections writable channel."
   [{:keys [request-channel response-channel] :as conn}]
   (cond (websocket? conn) request-channel
         (regular? conn) (if (chunked? conn) @response-channel request-channel)
         :else nil))
 
 (defn async-push-header
-  "Delivers a map as the header only. Used to initiate a chunked
-   connection. Chunks may be delivered via apush"
+  "Delivers the header only. Only used to initiate a chunked
+   connection. Chunks may be delivered via async-push"
   [conn header-map]
   (when (not (map? header-map))
         (throw "Expected a map of header options!"))
@@ -75,19 +104,21 @@
   "Push data to the client.
    If it's a websocket this sends a message.
    If it's a normal connection, it sends an entire response in one shot.
-   If this is a multipart connection (apush-header has been called earlier)
-   this sends a new body chunk."
+   If this is a multipart connection (apush-header has been called earlier) this sends a new body chunk.
+   For examples see the docs for (defpage-async)"
   [conn data]
   (lc/enqueue (writable-channel conn)
               (if (one-shot? conn) (format-one-shot data) data)))
 
 (defn on-close
-  "Callback to invoke on connection close."
+  "Sets a callback to handle a closed connection.
+   Callback takes no arguments."
   [{:keys [request-channel]} handler]
   (lc/on-closed request-channel handler))
 
 (defn on-receive
-  "Callback to invoke on receipt of a websocket message."
+  "Sets a callback to handle websocket messages.
+   Callback takes one argument, a string containing the message."
   [{:keys [request-channel]} handler]
   (lc/receive-all request-channel handler))
 
@@ -102,7 +133,9 @@
    :type (if (:websocket ring-request) :websocket :regular) })
 
 (defmacro defaleph-handler
-  "Returns an fn suitable for raw use with aleph + a ring request."
+  "Returns an fn suitable for raw use with aleph + a ring request.
+   Works much like defpage-async, just with fewer bindings. Look
+   at the docs for defpage-async for more details."
   [conn-binding & body]
   `(fn [ch# ring-request#]
      (let [~conn-binding (connection ch# ring-request#)]
@@ -111,7 +144,10 @@
        ~conn-binding)))
 
 (defmacro defpage-async
-  "Base for handling an asynchronous route."
+  "Creates an asynchronous noir route. This route can handle both
+   regular HTTP and Websocket connections. For regular HTTP
+   responses can be delivered in one shot, or in chunked mode.
+"
   [route request-bindings conn-binding & body]
   `(nc/custom-handler ~route {~request-bindings :params}
                       (ah/wrap-aleph-handler
