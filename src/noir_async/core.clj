@@ -3,13 +3,13 @@
            [aleph.http :as ah]
            [noir.core :as nc]))
 
-(defn- format-response
+(defn- format-one-shot
   "Format responses for a one shot response"
   [response]
   (cond (string? response) {:status 200 :body response}
         :else              response))
 
-(defn- downstream-ch
+(defn- downstream-c4h
   [{:keys [request-channel response-channel]}]
   "Returns the downstream channel for a connection"
   (or response-channel request-channel))
@@ -23,7 +23,12 @@
   "Is this connection in chunked mode?"
   [conn]
   (and (regular? conn)
-       @(:headers-sent conn)))
+       @(:chunked-initiated? conn)))
+
+(defn one-shot?
+  "Is this connection able a oneshot response?"
+  [conn]
+  (and (regular? conn) (not (chunked? conn))))
 
 (defn websocket?
   "Is the connection opened from the client as a websocket?"
@@ -41,13 +46,13 @@
   (lc/close request-channel)
   (when-let [rc @response-channel] (lc/close rc)))
 
-(defn deliver-header
+(defn apush-header
   "Delivers a map as the header only. Used to initiate a chunked
-   connection."
+   connection. Chunks may be delivered via apush"
   [conn header-map]
   (when (not (map? header-map))
         (throw "Expected a map of header options!"))
-  (when (not (compare-and-set! (:headers-sent conn) false true))
+  (when (not (compare-and-set! (:chunked-initiated? conn) false true))
     (throw "Attempted to send a chunked header, but header already sent!"))
   (let [resp-ch (lc/channel)
         orig-body (:body header-map)
@@ -57,17 +62,23 @@
       (lc/enqueue resp-ch) orig-body)
     (compare-and-set! (:response-channel conn) nil resp-ch)
     (lc/enqueue (:request-channel conn) resp)))
-    
-(defn deliver
-  "Respond with data"
+
+(defn- writable-channel
+  "Returns the writable channel in a connection"
+  [{:keys [request-channel response-channel] :as conn}]
+  (cond (websocket? conn) request-channel
+        (regular? conn) (if (chunked? conn) response-channel request-channel)
+        :else nil))
+
+(defn apush
+  "Push data to the client.
+   If it's a websocket this sends a message.
+   If it's a normal connection, it sends an entire response in one shot.
+   If this is a multipart connection (apush-header has been called earlier)
+   this sends a new body chunk."
   [conn data]
-  (cond (websocket? conn)
-          (lc/enqueue (:request-channel conn) data)
-        (regular? conn)
-          (if (chunked? conn)
-            (lc/enqueue @(:response-channel conn) data)
-            ;; Lamina only lets you respond once unless chunked anyway
-            (lc/enqueue-and-close (:request-channel conn) data))))
+  (lc/enqueue (writable-channel conn)
+              (if (one-shot? conn) (format-one-shot data) data)))
 
 (defn on-close
   "Callback to invoke on connection close."
@@ -79,19 +90,27 @@
   [{:keys [request-channel]} handler]
   (lc/receive-all request-channel handler))
 
-(defn- connection
+(defn connection
+  "Generates a new map representing a connection.
+   Generally for internal use only."
   [request-channel ring-request]
+  (println "DEBUGCONN: " [request-channel ring-request])
   {:request-channel request-channel
    :ring-request ring-request
    :response-channel (atom nil)
-   :headers-sent? (atom false)
+   :chunked-initiated? (atom false)
    :type (if (:websocket ring-request) :websocket :regular) })
 
-(defmacro defasync-route
+(defmacro defaleph-handler
+  "Returns an fn suitable for raw use with aleph + a ring request"
+  [conn-binding & body]
+  `(fn [ch# ring-request#]
+     (let [~conn-binding (connection ch# ring-request#)]
+       ~@body)))
+
+(defmacro defpage-async
   "Base for handling an asynchronous route."
-  [conn-fn path request-bindings conn-binding & body]
-  `(custom-handler ~path {~request-bindings :params}
-     (wrap-aleph-handler
-       (fn [ch# ring-request#]
-         (let [~conn-binding (connection ch# ring-request#)]
-           ~@body)))))
+  [path request-bindings conn-binding & body]
+  `(nc/custom-handler ~path {~request-bindings :params}
+     (ah/wrap-aleph-handler
+      (defaleph-handler ~conn-binding ~@body))))
