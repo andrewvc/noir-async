@@ -84,7 +84,7 @@
 (defn on-close
   "Callback to invoke on connection close."
   [{:keys [request-channel]} handler]
-  (lc/on-closed (request-channel) handler))
+  (lc/on-closed request-channel handler))
 
 (defn on-receive
   "Callback to invoke on receipt of a websocket message."
@@ -106,7 +106,9 @@
   [conn-binding & body]
   `(fn [ch# ring-request#]
      (let [~conn-binding (connection ch# ring-request#)]
-       ~@body)))
+       (on-close ~conn-binding (fn [] (close ~conn-binding)))
+       ~@body
+       ~conn-binding)))
 
 (defmacro defpage-async
   "Base for handling an asynchronous route."

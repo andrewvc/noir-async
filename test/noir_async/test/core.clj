@@ -23,9 +23,7 @@
        (let [ch# (channel)
              request# (make-request t-route# params#)]
          ; Execute the actual handler
-         (handler# ch# request#)
-         ; Return a fake connection to test against
-         (na/connection ch# request#)))))
+         (handler# ch# request#)))))
 
 (defn conn-tester []
   ((deftesthandler conn) "/foo" {}))
@@ -37,12 +35,37 @@
 
 (defn is-a-map [x] (testing "is a map" (is (map? x))))
 
+(deftest server-side-closes
+  (let [c (conn-tester)]
+    (na/close c)
+    (is (closed? (:request-channel c)))))
+
+(deftest client-side-closes
+  (let [c (conn-tester)
+        caught-close (atom false)]
+    (na/async-push-header c {:status 201}) ; we want to test w/ both channels
+    (na/on-close c (fn [] (compare-and-set! caught-close false true)))
+    (close (:request-channel c))
+    (testing "should execute the on-close body"
+      (is @caught-close))
+    (testing "should close the response-channel"
+      (is (closed? @(:response-channel c))))))
+
+(deftest received-messages
+  (let [c (conn-tester)
+        recvd-msg (atom nil)]
+    (na/on-receive c #(compare-and-set! recvd-msg nil %1))
+    (enqueue (:request-channel c) "ohai")
+    (testing "text matches"
+      (is (= "ohai" @recvd-msg)))))
+
 (deftest oneshot-responses
   (testing "string response"
     (let [r (simple-resp-tester "ohai")]
       (is-a-map r)
       (testing "body" (is (= (:body r) "ohai")))
       (testing "status" (is (= (:status r) 200)))))
+
   (testing "full response"
     (let [r (simple-resp-tester {:status 404
                                  :body "complex"
@@ -74,6 +97,6 @@
           (testing "closing"
             (na/close c)
             (testing "should close the request channel"
-              (= true (closed? (:request-channel c))))
+              (is (closed? (:request-channel c))))
             (testing "should close the response channel"
-              (= true (closed? @(:response-channel c))))))))))
+              (is (closed? @(:response-channel c))))))))))
