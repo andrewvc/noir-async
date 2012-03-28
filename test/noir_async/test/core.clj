@@ -1,54 +1,102 @@
 (ns noir-async.test.core
   (:use noir.core
         noir.util.test
-        aleph.http
         lamina.core
-        midje.sweet)
-  (:require [noir-async.core :as async]))
+        clojure.test)
+  (:require [noir-async.core :as na]
+            [noir.server :as nr-server] ))
 
 (def good-response-str "ohai!")
 (def good-response-map {:status 200 :body good-response-str})
 
-(async/defpage-async "/request-str" {} conn
-  (async/respond conn good-response-str))
+(defn- make-request [route & [params]]
+  (let [[method uri] (if (vector? route)
+                       route
+                       [:get route])]
+    {:uri uri :request-method method :params params}))
 
-(fact "page responses with strings get properly converted to 200 OK maps"
-  (send-request "/request-str") => anything
-  (provided
-    (enqueue-and-close anything good-response-map) => truthy))
+(defmacro deftesthandler
+  "A fake handler suitable for testing."
+  [conn-binding & body]
+  `(let [handler# (na/defaleph-handler ~conn-binding ~@body)]
+     (fn [t-route# params#]
+       (let [ch# (channel)
+             request# (make-request t-route# params#)]
+         ; Execute the actual handler
+         (handler# ch# request#)))))
 
-(async/defpage-async "/request-map" {} conn
-  (async/respond conn good-response-map))
+(defn conn-tester []
+  ((deftesthandler conn) "/foo" {}))
 
-(fact "page responses with maps are passed through to the channel"
-  (send-request "/request-map") => anything
-  (provided
-    (enqueue-and-close anything good-response-map) => truthy))
+(defn simple-resp-tester [resp]
+  "Just return the queued async response please!"
+  (let [handler (deftesthandler conn (na/async-push conn resp))]
+    (wait-for-message (:request-channel (handler "/foo" {})) 100)))
 
-(let [ws-body-call-count (atom 0)]
-  (async/defwebsocket "/websocket-open" {} conn
-    (swap! ws-body-call-count inc))
+(defn is-a-map [x] (testing "is a map" (is (map? x))))
 
-  (facts "websocket opens should execute the defwebsocket body"
-    (send-request "/websocket-open") => anything
-    (deref ws-body-call-count) => 1))
+(deftest server-side-closes
+  (let [c (conn-tester)]
+    (na/close c)
+    (is (closed? (:request-channel c)))))
 
-(let [test-ch (channel)
-      conn (async/websocket-connection test-ch {:params {}})
-      ws-messages-recvd (atom [])
-      close-call-count (atom 0)]
-   
-  (async/on-receive conn (fn [msg] (swap! ws-messages-recvd conj msg)))
-  (async/on-close   conn (fn [] (swap! close-call-count inc)))
+(deftest client-side-closes
+  (let [c (conn-tester)
+        caught-close (atom false)]
+    (na/async-push-header c {:status 201}) ; we want to test w/ both channels
+    (na/on-close c (fn [] (compare-and-set! caught-close false true)))
+    (close (:request-channel c))
+    (testing "should execute the on-close body"
+      (is @caught-close))
+    (testing "should close the response-channel"
+      (is (closed? @(:response-channel c))))))
 
-  (fact "on-receive should trigger callback for all messages"
-    (do (enqueue test-ch ...enqueued-msg...)
-        (some #{...enqueued-msg...} @ws-messages-recvd)) => truthy)
- 
-  (fact "send-message should enqueue the message onto the channel"
-    (let [sent-msg ...sent-msg...]
-        (async/send-message conn sent-msg)
-        (some #{sent-msg} @ws-messages-recvd)) => truthy)
- 
-  (fact "on-close should be triggered when the channel closes"
-    (do (close test-ch) @close-call-count) => 1))
+(deftest received-messages
+  (let [c (conn-tester)
+        recvd-msg (atom nil)]
+    (na/on-receive c #(compare-and-set! recvd-msg nil %1))
+    (enqueue (:request-channel c) "ohai")
+    (testing "text matches"
+      (is (= "ohai" @recvd-msg)))))
+
+(deftest oneshot-responses
+  (testing "string response"
+    (let [r (simple-resp-tester "ohai")]
+      (is-a-map r)
+      (testing "body" (is (= (:body r) "ohai")))
+      (testing "status" (is (= (:status r) 200)))))
+
+  (testing "full response"
+    (let [r (simple-resp-tester {:status 404
+                                 :body "complex"
+                                 :x-whatever "fancy"})]
+      (is-a-map r)
+      (testing "status" (is (= (:status r) 404)))
+      (testing "body" (is (= (:body r) "complex")))
+      (testing "custom headers" (is (= (:x-whatever r) "fancy"))))))
+
+(defn chunk-receive [header]
+  (wait-for-message (:body header) 100))
+
+(deftest chunked-responses
+  (testing "three chunks"
+    (let [c (conn-tester)]
+      (testing "with a header"
+        (let [sent-header {:status 500 :x-rand-hdr 123}
+              _ (na/async-push-header c sent-header)
+              rcvd-header (wait-for-message (:request-channel c) 100)]
+          (is (= sent-header (dissoc rcvd-header :body)))
+          (testing "on the first chunk"
+            (na/async-push c "chunk-one")
+            (is (= "chunk-one" (chunk-receive rcvd-header))))
+          (testing "on the second and third chunks, grouped"
+            (na/async-push c "chunk-two")
+            (na/async-push c "chunk-three")
+            (is (= "chunk-two" (chunk-receive rcvd-header)))
+            (is (= "chunk-three" (chunk-receive rcvd-header))))
+          (testing "closing"
+            (na/close c)
+            (testing "should close the request channel"
+              (is (closed? (:request-channel c))))
+            (testing "should close the response channel"
+              (is (closed? @(:response-channel c))))))))))

@@ -1,5 +1,7 @@
 # noir-async
 
+*NOTE: This module is currently being refactored. The README below applies to the released jar, but a new version, with a new, improved API will be out soon. Check out the source to this branch for more details.*
+
 Support for asynchronous requests / responses in Noir using Aleph
 
 ## Usage
