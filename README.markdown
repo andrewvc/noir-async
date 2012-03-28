@@ -2,6 +2,8 @@
 
 *NOTE: This module is currently being refactored. The README below applies to the released jar, but a new version, with a new, improved API will be out soon. Check out the source to this branch for more details.*
 
+![build status](https://secure.travis-ci.org/andrewvc/noir-async.png)
+
 Support for asynchronous requests / responses in Noir using Aleph
 
 ## Usage
