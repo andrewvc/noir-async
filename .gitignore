@@ -14,3 +14,5 @@ lib/*
 vendor/bundle
 pom.xml
 .lein-failures
+autodoc
+docs
