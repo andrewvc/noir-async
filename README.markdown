@@ -2,9 +2,9 @@
 
 ![build status](https://secure.travis-ci.org/andrewvc/noir-async.png)
 
-## Seamless, concise, async webservices for clojure. Based on noir and aleph
+## Seamless, concise, async webservices for clojure.
 
-noir-async integrates the aleph async library into noir allowing asynchronous programming with minimal syntax.
+noir-async integrates the [noir](https://github.com/ibdknox/noir) web framework with the [aleph](https://github.com/ztellman/aleph) async library with minimal syntax. With noir-async you can create well organized webapps, with both synchronous and asynchronous logic, and multiple asynchronous endpoints.
 
 ##  Examples:
 
