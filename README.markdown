@@ -29,8 +29,8 @@ Using async-push-header will start a multipart response
 ```clojure
 (defpage-asyc "/always-chunky" [] conn
   (async-push-header conn {:status 200})
-  (async-push conn \"chunk one\")
-  (async-push conn \"chunk two\")
+  (async-push conn "chunk one")
+  (async-push conn "chunk two")
   (close conn))
 ```
 
