@@ -4,30 +4,38 @@
 
 noir-async integrates the [noir](https://github.com/ibdknox/noir) web framework with the [aleph](https://github.com/ztellman/aleph) async library with minimal syntax. With noir-async you can create well organized webapps, with both synchronous and asynchronous logic, and multiple asynchronous endpoints.
 
-##  Examples:
+## How it works
 
-A decent websocket example can be found at [noir-async-chat](https://github.com/andrewvc/noir-async-chat)
+If you aren't already familiar with [noir](https://github.com/ibdknox/noir) you should read up on it a bit. noir-async simply provides an additional async version of `defpage`, called `defpage-async`. noir-async will not affect `defpage`, which will still work, and still run in a threaded fashion.
 
-Note: this syntax is the same as noir's but with an additional conn (connection) parameter used to send responses through.
-   
-An example route that responds in one shot. On standard HTTP requests you can only respond with one message.
+You will also need to setup your server.clj differently, there's an example at the bottom of this README.
+
+For a running example a chatroom using a websocket can be found at [noir-async-chat](https://github.com/andrewvc/noir-async-chat)
+
+##  Getting Started:
+
+Add `[noir-async 1.0.0-SNAPSHOT]` to your project.clj
+
+Here's an example route that responds in one shot:
 
 ```clojure
+; Note, same syntax as noir's defpage, but with "conn" parameter
 (defpage-asyc "/route" [] conn
   (async-push {:status 404 :body "Couldn't find it!"}))
 ```
 
-An example route that handles a websocket
+This is an example route that handles a websocket:
 
 ```clojure
 (defpage-async "/echo" [] conn
   (on-receive (fn [m] (async-push conn m))))
 ```
 
-Using async-push-header will start a multipart response
+Finally, here's an example of responding in a chunked fashion:
 
 ```clojure
 (defpage-asyc "/always-chunky" [] conn
+  ;; Sending the header explicitly indicates a chunked response
   (async-push-header conn {:status 200})
   (async-push conn "chunk one")
   (async-push conn "chunk two")
