@@ -1,6 +1,4 @@
-# noir-async
-
-![build status](https://secure.travis-ci.org/andrewvc/noir-async.png)
+# noir-async [![Build Status](https://secure.travis-ci.org/andrewvc/noir-async.png?branch=master)](http://travis-ci.org/andrewvc/noir-async)
 
 ## Seamless, concise, async webservices for clojure.
 
