@@ -35,6 +35,38 @@
 
 (defn is-a-map [x] (testing "is a map" (is (map? x))))
 
+(def types-sample-requests
+     {:websocket (na/connection (channel)
+                  (assoc (make-request "/w") :websocket true))
+      :one-shot (na/connection (channel) (make-request "/o"))
+      :chunked (assoc (na/connection (channel) (make-request "/c"))
+                 :chunked-initiated? (atom true)
+                 :response-channel (atom (channel)))})
+
+(deftest typechecks-against-websockets
+  (let [c (:websocket types-sample-requests)]
+    (are [x] (= true x)
+         (na/websocket? c)
+         (not (na/regular? c))
+         (not (na/one-shot? c))
+         (not (na/chunked? c)))))
+
+(deftest typechecks-against-one-shots
+  (let [c (:one-shot types-sample-requests)]
+    (are [x] (= true x)
+         (not (na/websocket? c))
+         (na/regular? c)
+         (na/one-shot? c)
+         (not (na/chunked? c)))))
+
+(deftest typechecks-against-chunked
+  (let [c (:chunked types-sample-requests)]
+    (are [x] (= true x)
+         (not (na/websocket? c))
+         (na/regular? c)
+         (not (na/one-shot? c))
+         (na/chunked? c))))
+
 (deftest server-side-closes
   (let [c (conn-tester)]
     (na/close c)
