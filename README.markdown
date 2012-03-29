@@ -14,7 +14,7 @@ An example route that responds in one shot. On standard HTTP requests you can on
 
 ```clojure
 (defpage-asyc "/route" [] conn
-  (async-push {:status 404 :body \"Couldn't find it!\"}))
+  (async-push {:status 404 :body "Couldn't find it!"}))
 ```
 
 An example route that handles a websocket
