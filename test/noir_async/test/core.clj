@@ -16,21 +16,24 @@
     {:uri uri :request-method method :params params}))
 
 (defmacro deftesthandler
-  "A fake handler suitable for testing."
-  [conn-binding & body]
+  "Define a route that generates handlers suitable for testing"
+  [conn-binding request-merge & body]
   `(let [handler# (na/defaleph-handler ~conn-binding ~@body)]
      (fn [t-route# params#]
        (let [ch# (channel)
-             request# (make-request t-route# params#)]
+             request# (merge (make-request t-route# params#) ~request-merge)]
          ; Execute the actual handler
          (handler# ch# request#)))))
 
 (defn conn-tester []
-  ((deftesthandler conn) "/foo" {}))
+  ((deftesthandler conn {}) "/foo" {}))
+
+(defn websocket-conn-tester []
+  ((deftesthandler conn {:websocket true}) "/foo" {}))
 
 (defn simple-resp-tester [resp]
   "Just return the queued async response please!"
-  (let [handler (deftesthandler conn (na/async-push conn resp))]
+  (let [handler (deftesthandler conn {} (na/async-push conn resp))]
     (wait-for-message (:request-channel (handler "/foo" {})) 100)))
 
 (defn is-a-map [x] (testing "is a map" (is (map? x))))
@@ -132,3 +135,27 @@
               (is (closed? (:request-channel c))))
             (testing "should close the response channel"
               (is (closed? @(:response-channel c))))))))))
+
+(defn test-message-receipt
+  [results num contents]
+  (testing "should increment the rcvd-count"
+    (is (= num @(:rcount results))))
+  (testing "should see the message"
+    (is (= (last @(:rmsgs results)) contents))))
+
+;; Note, in a real server sent messages don't loop back
+;; But this works fine-ish for testing
+(deftest websocket-connections
+  (testing "a simple message exchange"
+    (let [c          (websocket-conn-tester)
+          req-ch     (:request-channel c)
+          results    {:rcount (atom 0) :rmsgs (atom [])}]
+      (na/on-receive c (fn [m]
+                         (swap! (:rcount results) inc)
+                         (swap! (:rmsgs results) #(conj %1 m))))
+      (testing "the rcvd first message"
+        (enqueue req-ch "first-rcvd-message")
+        (test-message-receipt results 1 "first-rcvd-message"))
+      (testing "the first sent message"
+        (na/async-push c "first-sent-message")
+        (test-message-receipt results 2 "first-sent-message")))))
