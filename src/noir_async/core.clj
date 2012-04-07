@@ -55,8 +55,8 @@
         :else nil))
 
 (defn async-push-header
-  "Delivers the header only. Only used to initiate a chunked
-   connection. Chunks may be delivered via async-push"
+  "Explicitly sends a chunked header, the same as
+   (async-push conn {:chunked true})"
   [conn header-map]
   (when (not (map? header-map))
         (throw "Expected a map of header options!"))
@@ -72,14 +72,17 @@
     (lc/enqueue (:request-channel conn) resp)))
 
 (defn async-push
-  "Push data to the client.
+  "Pushes data to the client.
    If it's a websocket this sends a message.
    If it's a normal connection, it sends an entire response in one shot.
-   If this is a multipart connection (apush-header has been called earlier) this sends a new body chunk.
-   For examples see the docs for (defpage-async)"
+   To start a multi-part connection, send a header with the body set to :chunked
+     ex: (async-push conn {:chunked true})
+   If this is a multipart connection (a chunked header has been sent been called earlier) this sends a new body chunk."
   [conn data]
-  (lc/enqueue (writable-channel conn)
-              (if (one-shot? conn) (format-one-shot data) data)))
+  (if (and (map? data) (:chunked data))
+    (async-push-header conn (dissoc data :chunked))
+    (lc/enqueue (writable-channel conn)
+                (if (one-shot? conn) (format-one-shot data) data))))
 
 (defn on-close
   "Sets a callback to handle a closed connection.

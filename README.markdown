@@ -36,7 +36,7 @@ Finally, here's an example of responding in a chunked fashion:
 ```clojure
 (defpage-asyc "/always-chunky" [] conn
   ;; Sending the header explicitly indicates a chunked response
-  (async-push-header conn {:status 200})
+  (async-push conn {:status 200 :chunked true})
   (async-push conn "chunk one")
   (async-push conn "chunk two")
   (close conn))

@@ -78,7 +78,8 @@
 (deftest client-side-closes
   (let [c (conn-tester)
         caught-close (atom false)]
-    (na/async-push-header c {:status 201}) ; we want to test w/ both channels
+    ;; we want to test w/ both channels
+    (na/async-push c {:status 201 :chunked true})
     (na/on-close c (fn [] (compare-and-set! caught-close false true)))
     (close (:request-channel c))
     (testing "should execute the on-close body"
