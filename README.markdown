@@ -21,14 +21,14 @@ Here's an example route that responds in one shot:
 ```clojure
 ; Note, same syntax as noir's defpage, but with "conn" parameter
 (defpage-asyc "/route" [] conn
-  (async-push {:status 404 :body "Couldn't find it!"}))
+  (async-push conn {:status 404 :body "Couldn't find it!"}))
 ```
 
 This is an example route that handles a websocket:
 
 ```clojure
 (defpage-async "/echo" [] conn
-  (on-receive (fn [m] (async-push conn m))))
+  (on-receive conn (fn [m] (async-push conn m))))
 ```
 
 Finally, here's an example of responding in a chunked fashion:
