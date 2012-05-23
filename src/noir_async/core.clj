@@ -40,13 +40,6 @@
   [conn]
   (lc/closed? (:request-channel conn)))
 
-(defn close
-  "Closes the connection. No more data can be sent / received after this"
-  [{:keys [request-channel response-channel]}]
-  (lc/close request-channel)
-  (when-let [rc @response-channel] (lc/close rc)))
-
-
 (defn- writable-channel
   "Returns the a connections writable channel."
   [{:keys [request-channel response-channel] :as conn}]
@@ -84,17 +77,30 @@
     (lc/enqueue (writable-channel conn)
                 (if (one-shot? conn) (format-one-shot data) data))))
 
+(defn close
+  "Closes the connection. No more data can be sent / received after this"
+  [{:keys [request-channel response-channel]}]
+  (if (lc/channel? request-channel)
+    (lc/close request-channel)
+    (async-push {:status 500 :body "Internal Error. Attempted explicit connection close on non-stream in noir-sync"}))
+  (when-let [rc @response-channel] (lc/close rc)))
+
 (defn on-close
   "Sets a callback to handle a closed connection.
    Callback takes no arguments."
   [{:keys [request-channel]} handler]
-  (lc/on-closed request-channel handler))
+  ;; We distinguish between Plain HTTP Channels (result channels)
+  ;; and more socket oriented spliced ones
+  (if (lc/channel? request-channel)
+    (lc/on-closed request-channel handler)))
 
 (defn on-receive
   "Sets a callback to handle websocket messages.
    Callback takes one argument, a string containing the message."
   [{:keys [request-channel]} handler]
-  (lc/receive-all request-channel handler))
+  (if (lc/channel? request-channel)
+    (lc/receive-all request-channel handler)
+    (lc/on-realized request-channel handler nil)))
 
 (defn connection
   "Generates a new map representing a connection.
@@ -111,9 +117,9 @@
    Works much like defpage-async, just with fewer bindings. Look
    at the docs for defpage-async for more details."
   [conn-binding & body]
-  `(fn [ch# ring-request#]
+  `(fn na-aleph-handle-inner [ch# ring-request#]
      (let [~conn-binding (connection ch# ring-request#)]
-       (on-close ~conn-binding (fn [] (close ~conn-binding)))
+       (on-close ~conn-binding (fn na-aleph-on-close [] (close ~conn-binding)))
        ~@body
        ~conn-binding)))
 

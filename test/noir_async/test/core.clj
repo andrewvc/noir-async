@@ -118,7 +118,7 @@
   (testing "three chunks"
     (let [c (conn-tester)]
       (testing "with a header"
-        (let [sent-header {:status 500 :x-rand-hdr 123}
+        (let [sent-header {:status 500 :x-rand-hdr 123 :chunked true}
               _ (na/async-push-header c sent-header)
               rcvd-header (wait-for-message (:request-channel c) 100)]
           (is (= sent-header (dissoc rcvd-header :body)))
@@ -132,8 +132,6 @@
             (is (= "chunk-three" (chunk-receive rcvd-header))))
           (testing "closing"
             (na/close c)
-            (testing "should close the request channel"
-              (is (closed? (:request-channel c))))
             (testing "should close the response channel"
               (is (closed? @(:response-channel c))))))))))
 
@@ -159,4 +157,7 @@
         (test-message-receipt results 1 "first-rcvd-message"))
       (testing "the first sent message"
         (na/async-push c "first-sent-message")
-        (test-message-receipt results 2 "first-sent-message")))))
+        (test-message-receipt results 2 "first-sent-message"))
+      (testing "server-side closes"
+        (na/close c)
+        (is (closed? (:request-channel c)))))))
