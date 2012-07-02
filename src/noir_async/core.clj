@@ -79,11 +79,12 @@
 
 (defn close
   "Closes the connection. No more data can be sent / received after this"
-  [{:keys [request-channel response-channel]}]
-  (if (lc/channel? request-channel)
-    (lc/close request-channel)
-    (async-push {:status 500 :body "Internal Error. Attempted explicit connection close on non-stream in noir-sync"}))
-  (when-let [rc @response-channel] (lc/close rc)))
+  [conn]
+  (if-let [req-ch (:request-channel conn)]
+    (if (lc/channel? req-ch)
+      (lc/close req-ch)
+      (async-push conn {:status 500 :body "Internal Error. Attempted explicit connection close on non-stream in noir-sync"})))
+  (when-let [resp-ch @(:response-channel conn)] (lc/close resp-ch)))
 
 (defn on-close
   "Sets a callback to handle a closed connection.
