@@ -14,7 +14,7 @@ For a running example a chatroom using a websocket can be found at [noir-async-c
 
 ##  Getting Started:
 
-Add `[noir-async 1.1.0-beta1]` to your project.clj
+Add `[noir-async 1.1.0-beta2]` to your project.clj
 
 Here's an example route that responds in one shot:
 
