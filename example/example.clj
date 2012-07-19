@@ -17,12 +17,15 @@
   (async-push conn {:status 200 :chunked true})
   (async-push conn "chunk one")
   (async-push conn "chunk two")
+  (on-close conn (fn [_] (println "CLOSED IT")))
   (close conn))
 
 (defn start-server [& m]
   (let [mode (keyword (or (first m) :dev))
-        port (Integer. (get (System/getenv) "PORT" "3000"))
+        port (Integer. (get (System/getenv) "PORT" "3502"))
         noir-handler (nr-server/gen-handler {:mode mode})]
     (start-http-server
       (wrap-ring-handler noir-handler)
       {:port port :websocket true})))
+
+

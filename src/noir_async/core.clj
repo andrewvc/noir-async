@@ -80,20 +80,20 @@
 (defn close
   "Closes the connection. No more data can be sent / received after this"
   [conn]
-  (if-let [req-ch (:request-channel conn)]
-    (if (lc/channel? req-ch)
-      (lc/close req-ch)
-      (async-push conn {:status 500 :body "Internal Error. Attempted explicit connection close on non-stream in noir-sync"})))
-  (when-let [resp-ch @(:response-channel conn)] (lc/close resp-ch)))
+  (when-let [resp-ch @(:response-channel conn)]
+    (lc/close resp-ch))
+  (when-let [req-ch (:request-channel conn)]
+    (when (lc/channel? req-ch) (lc/close req-ch))))
 
 (defn on-close
   "Sets a callback to handle a closed connection.
    Callback takes no arguments."
-  [{:keys [request-channel]} handler]
-  ;; We distinguish between Plain HTTP Channels (result channels)
-  ;; and more socket oriented spliced ones
+  [{:keys [request-channel response-channel]} handler]
   (if (lc/channel? request-channel)
-    (lc/on-closed request-channel handler)))
+    (lc/on-closed request-channel handler)
+    (lc/on-realized request-channel
+                    #(lc/on-closed (:body %) handler)
+                    #(throw %))))
 
 (defn on-receive
   "Sets a callback to handle websocket messages.
