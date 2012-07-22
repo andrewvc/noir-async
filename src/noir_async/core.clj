@@ -92,7 +92,7 @@
   (if (lc/channel? request-channel)
     (lc/on-closed request-channel handler)
     (lc/on-realized request-channel
-                    #(lc/on-closed (:body %) handler)
+                    #(when-let [rc @response-channel] (lc/on-closed @response-channel handler))
                     #(throw %))))
 
 (defn on-receive
