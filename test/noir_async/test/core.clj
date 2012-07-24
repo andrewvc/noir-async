@@ -72,7 +72,7 @@
 
 (deftest server-side-closes
   (let [c (conn-tester)]
-    (na/close c)
+    (na/close-connection c)
     (is (closed? (:request-channel c)))))
 
 (deftest client-side-closes
@@ -131,7 +131,7 @@
             (is (= "chunk-two" (chunk-receive rcvd-header)))
             (is (= "chunk-three" (chunk-receive rcvd-header))))
           (testing "closing"
-            (na/close c)
+            (na/close-connection c)
             (testing "should close the response channel"
               (is (closed? @(:response-channel c))))))))))
 
@@ -159,5 +159,5 @@
         (na/async-push c "first-sent-message")
         (test-message-receipt results 2 "first-sent-message"))
       (testing "server-side closes"
-        (na/close c)
+        (na/close-connection c)
         (is (closed? (:request-channel c)))))))
