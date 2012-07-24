@@ -1,6 +1,7 @@
 (ns noir-async.core
   (require [lamina.core :as lc]
            [aleph.http :as ah]
+           [aleph.formats :as af]
            [noir.core :as nc]))
 
 (defn- format-one-shot
@@ -77,7 +78,17 @@
     (lc/enqueue (writable-channel conn)
                 (if (one-shot? conn) (format-one-shot data) data))))
 
-(defn close
+(defn request-body-str
+  "Retrieves the request body as a string."
+  [conn]
+  (af/bytes->string (:body (:ring-request conn))))
+
+(defn request-body-byte-buffer
+  "Retrieves the request body as a byte[]"
+  [conn]
+  (af/bytes->byte-buffer (:body (:ring-request conn))))
+
+(defn close-connection
   "Closes the connection. No more data can be sent / received after this"
   [conn]
   (when-let [resp-ch @(:response-channel conn)]
@@ -120,7 +131,7 @@
   [conn-binding & body]
   `(fn na-aleph-handle-inner [ch# ring-request#]
      (let [~conn-binding (connection ch# ring-request#)]
-       (on-close ~conn-binding (fn na-aleph-on-close [] (close ~conn-binding)))
+       (on-close ~conn-binding (fn na-aleph-on-close [] (close-connection ~conn-binding)))
        ~@body
        ~conn-binding)))
 

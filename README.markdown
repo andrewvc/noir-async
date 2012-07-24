@@ -14,7 +14,7 @@ For a running example a chatroom using a websocket can be found at [noir-async-c
 
 ##  Getting Started:
 
-Add `[noir-async 1.1.0-beta5]` to your project.clj
+Add `[noir-async 1.1.0-beta6]` to your project.clj
 
 Here's an example route that responds in one shot:
 
@@ -39,7 +39,7 @@ Finally, here's an example of responding in a chunked fashion:
   (async-push conn {:status 200 :chunked true})
   (async-push conn "chunk one")
   (async-push conn "chunk two")
-  (close conn))
+  (close-connection conn))
 ```
 
 Since it uses an identical interface for both websockets
