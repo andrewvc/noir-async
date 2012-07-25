@@ -9,7 +9,7 @@ noir-async integrates the [noir](https://github.com/ibdknox/noir) web framework 
 1. Add `[noir-async 1.1.0-beta7]` to your project.clj
 1. Use the custom [server.clj](#server-setup)
 1. Follow the examples below
-1. Read the [full api docs](http://andrewvc.github.com/noir-async/autodoc/) for more examples.
+1. Read the [full API docs](http://andrewvc.github.com/noir-async/autodoc/) for more examples.
 
 Here's an example route that responds in one shot:
 
@@ -73,7 +73,14 @@ Be sure to replace noir-async-chat with the appropriate namespace.
       {:port port :websocket true})))
 ```
 
-Full Docs
+## Full Docs
+
+[Full API Docs](http://andrewvc.github.com/noir-async/autodoc/) for more examples.
+
+## Apps Using noir-async
+
+[engulf](https://github.com/andrewvc/engulf)
+[noir-async-chat](https://github.com/andrewvc/noir-async-chat)
 
 ## License
 
