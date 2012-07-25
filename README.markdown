@@ -31,7 +31,7 @@ This is an example route that handles a websocket:
   (on-receive conn (fn [m] (async-push conn m))))
 ```
 
-Finally, here's an example of responding in a chunked fashion:
+Here's an example of responding in a chunked fashion:
 
 ```clojure
 (defpage-async "/always-chunky" [] conn
@@ -42,11 +42,19 @@ Finally, here's an example of responding in a chunked fashion:
   (close-connection conn))
 ```
 
+Reading request bodies with aleph can be a little odd, so that interface is sugared:
+
+```clojure
+(defpage-async "/some-route" {} conn
+  ;; You can also retrieve the body as a ByteBuffer. See full docs for details
+  (async-push (str "Received body:" (request-body-str conn))))
+```
+
 Since it uses an identical interface for both websockets
 and regular HTTP, if you want to handle them differently be
 sure to use the websocket? and regular? functions to discern them.
 
-## Setting up server.clj
+## Using
 
 In your server.clj, you'll want to use aleph as a server explicitly.
 Be sure to replace noir-async-chat with the appropriate namespace.
@@ -69,6 +77,8 @@ Be sure to replace noir-async-chat with the appropriate namespace.
       (wrap-ring-handler noir-handler)
       {:port port :websocket true})))
 ```
+
+Full Docs
 
 ## License
 
