@@ -1,4 +1,4 @@
-(defproject noir-async/noir-async "1.1.0-beta6" 
+(defproject noir-async/noir-async "1.1.0-beta7" 
   :min-lein-version "2.0.0"
   :dependencies [[org.clojure/clojure "1.4.0"]
                  [noir "1.3.0-beta10"]
