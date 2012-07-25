@@ -6,13 +6,11 @@ noir-async integrates the [noir](https://github.com/ibdknox/noir) web framework 
 
 ## How it works
 
-If you aren't already familiar with [noir](https://github.com/ibdknox/noir) you should read up on it a bit. noir-async simply provides an additional async version of `defpage`, called `defpage-async`. noir-async will not affect `defpage`, which will still work, and still run in a threaded fashion.
+The integration is fairly seamless. You will, however, need to setup a special `server.clj` file. Just modify the template included toward the bottom of this document.
 
-You will also need to setup your server.clj differently, there's an example at the bottom of this README.
+For a running example a chatroom using a websocket can be found at [noir-async-chat](https://github.com/andrewvc/noir-async-chat). A larger project using noir-async is my [engulf](http://andrewvc.github.com/engulf/)
 
-For a running example a chatroom using a websocket can be found at [noir-async-chat](https://github.com/andrewvc/noir-async-chat)
-
-##  Getting Started:
+##  Some examples:
 
 Add `[noir-async 1.1.0-beta6]` to your project.clj
 
