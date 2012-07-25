@@ -4,15 +4,12 @@
 
 noir-async integrates the [noir](https://github.com/ibdknox/noir) web framework with the [aleph](https://github.com/ztellman/aleph) async library with minimal syntax. With noir-async you can create well organized webapps, with both synchronous and asynchronous logic, and multiple asynchronous endpoints.
 
-## How it works
+##  Getting Started
 
-The integration is fairly seamless. You will, however, need to setup a special `server.clj` file. Just modify the template included toward the bottom of this document.
-
-For a running example a chatroom using a websocket can be found at [noir-async-chat](https://github.com/andrewvc/noir-async-chat). A larger project using noir-async is my [engulf](http://andrewvc.github.com/engulf/)
-
-##  Some examples:
-
-Add `[noir-async 1.1.0-beta7]` to your project.clj
+1. Add `[noir-async 1.1.0-beta7]` to your project.clj
+1. Use the custom [server.clj](#server-setup)
+1. Follow the examples below
+1. Read the [full api docs](http://andrewvc.github.com/noir-async/autodoc/) for more examples.
 
 Here's an example route that responds in one shot:
 
@@ -52,7 +49,7 @@ Since it uses an identical interface for both websockets
 and regular HTTP, if you want to handle them differently be
 sure to use the websocket? and regular? functions to discern them.
 
-## Using
+## Server Setup
 
 In your server.clj, you'll want to use aleph as a server explicitly.
 Be sure to replace noir-async-chat with the appropriate namespace.
