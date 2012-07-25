@@ -1,4 +1,5 @@
 (ns noir-async.core
+  "The main namespace to require when building an app with noir-async."
   (require [lamina.core :as lc]
            [aleph.http :as ah]
            [aleph.formats :as af]

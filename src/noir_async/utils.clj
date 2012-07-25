@@ -1,5 +1,5 @@
 (ns noir-async.utils
-  "Helpful tools for asynchronous apps"
+  "Helpful tools for asynchronous apps."
   (:import [java.util Timer TimerTask concurrent.TimeUnit]))
 
 (def default-timer (Timer. true))
