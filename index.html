@@ -1,0 +1,133 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <title>noir-async by andrewvc</title>
+
+    <link rel="stylesheet" href="stylesheets/styles.css">
+    <link rel="stylesheet" href="stylesheets/pygment_trac.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+    <!--[if lt IE 9]>
+    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+  </head>
+  <body>
+    <div class="wrapper">
+      <header>
+        <h1>noir-async</h1>
+        <p>Seamless, concise, async webservices for clojure.</p>
+
+        <p class="view"><a href="https://github.com/andrewvc/noir-async">View the Project on GitHub <small>andrewvc/noir-async</small></a></p>
+
+
+        <ul>
+          <li><a href="https://github.com/andrewvc/noir-async/zipball/master">Download <strong>ZIP File</strong></a></li>
+          <li><a href="https://github.com/andrewvc/noir-async/tarball/master">Download <strong>TAR Ball</strong></a></li>
+          <li><a href="https://github.com/andrewvc/noir-async">View On <strong>GitHub</strong></a></li>
+        </ul>
+      </header>
+      <section>
+        <h2>Async, Clean, Easy</h2>
+
+<p><a href="https://github.com/ibdknox/noir">noir</a> + <a href="https://github.com/ztellman/aleph">aleph</a> = <strong>noir-async</strong>. A clean library for high-performance async web services in clojure.</p>
+
+<h2>Getting Started</h2>
+
+<ol>
+<li>Add <code>[noir-async 1.1.0-beta7]</code> to your project.clj</li>
+<li>Use the custom <a href="#server-setup">server.clj</a>
+</li>
+<li>Follow the examples below</li>
+<li>Read the <a href="http://andrewvc.github.com/noir-async/autodoc/">full API docs</a> for more examples.</li>
+</ol><p>Here's an example route that responds in one shot:</p>
+
+<div class="highlight"><pre><span class="c1">; Note, same syntax as noir's defpage, but with "conn" parameter</span>
+<span class="p">(</span><span class="nf">defpage-async</span> <span class="s">"/route"</span> <span class="p">[]</span> <span class="nv">conn</span>
+  <span class="p">(</span><span class="nf">async-push</span> <span class="nv">conn</span> <span class="p">{</span><span class="ss">:status</span> <span class="mi">404</span> <span class="ss">:body</span> <span class="s">"Couldn't find it!"</span><span class="p">}))</span>
+</pre></div>
+
+<p>This is an example route that handles a websocket:</p>
+
+<div class="highlight"><pre><span class="p">(</span><span class="nf">defpage-async</span> <span class="s">"/echo"</span> <span class="p">[]</span> <span class="nv">conn</span>
+  <span class="p">(</span><span class="nf">on-receive</span> <span class="nv">conn</span> <span class="p">(</span><span class="k">fn </span><span class="p">[</span><span class="nv">m</span><span class="p">]</span> <span class="p">(</span><span class="nf">async-push</span> <span class="nv">conn</span> <span class="nv">m</span><span class="p">))))</span>
+</pre></div>
+
+<p>Here's an example of responding in a chunked fashion:</p>
+
+<div class="highlight"><pre><span class="p">(</span><span class="nf">defpage-async</span> <span class="s">"/always-chunky"</span> <span class="p">[]</span> <span class="nv">conn</span>
+  <span class="c1">;; Sending the header explicitly indicates a chunked response</span>
+  <span class="p">(</span><span class="nf">async-push</span> <span class="nv">conn</span> <span class="p">{</span><span class="ss">:status</span> <span class="mi">200</span> <span class="ss">:chunked</span> <span class="nv">true</span><span class="p">})</span>
+  <span class="p">(</span><span class="nf">async-push</span> <span class="nv">conn</span> <span class="s">"chunk one"</span><span class="p">)</span>
+  <span class="p">(</span><span class="nf">async-push</span> <span class="nv">conn</span> <span class="s">"chunk two"</span><span class="p">)</span>
+  <span class="p">(</span><span class="nf">close-connection</span> <span class="nv">conn</span><span class="p">))</span>
+</pre></div>
+
+<p>Reading request bodies with aleph can be a little odd, so that interface is sugared:</p>
+
+<div class="highlight"><pre><span class="p">(</span><span class="nf">defpage-async</span> <span class="s">"/some-route"</span> <span class="p">{}</span> <span class="nv">conn</span>
+  <span class="c1">;; You can also retrieve the body as a ByteBuffer. See full docs for details</span>
+  <span class="p">(</span><span class="nf">async-push</span> <span class="p">(</span><span class="nb">str </span><span class="s">"Received body:"</span> <span class="p">(</span><span class="nf">request-body-str</span> <span class="nv">conn</span><span class="p">))))</span>
+</pre></div>
+
+<p>Since it uses an identical interface for both websockets
+and regular HTTP, if you want to handle them differently be
+sure to use the websocket? and regular? functions to discern them.</p>
+
+<h2>Server Setup</h2>
+
+<p>In your server.clj, you'll want to use aleph as a server explicitly.
+Be sure to replace noir-async-chat with the appropriate namespace.</p>
+
+<div class="highlight"><pre><span class="p">(</span><span class="kd">ns </span><span class="nv">noir-async-chat.server</span>
+  <span class="p">(</span><span class="ss">:use</span> <span class="nv">aleph.http</span>
+        <span class="nv">noir.core</span>
+        <span class="nv">lamina.core</span><span class="p">)</span>
+  <span class="p">(</span><span class="ss">:require</span>
+    <span class="p">[</span><span class="nv">noir.server</span> <span class="ss">:as</span> <span class="nv">nr-server</span><span class="p">]</span> <span class="p">))</span>
+
+<span class="p">(</span><span class="nf">nr-server/load-views</span> <span class="s">"src/noir_async_chat/views/"</span><span class="p">)</span>
+
+<span class="p">(</span><span class="kd">defn </span><span class="nv">-main</span> <span class="p">[</span><span class="o">&amp;</span> <span class="nv">m</span><span class="p">]</span>
+  <span class="p">(</span><span class="k">let </span><span class="p">[</span><span class="nv">mode</span> <span class="p">(</span><span class="nb">keyword </span><span class="p">(</span><span class="nb">or </span><span class="p">(</span><span class="nb">first </span><span class="nv">m</span><span class="p">)</span> <span class="ss">:dev</span><span class="p">))</span>
+        <span class="nv">port</span> <span class="p">(</span><span class="nf">Integer.</span> <span class="p">(</span><span class="nb">get </span><span class="p">(</span><span class="nf">System/getenv</span><span class="p">)</span> <span class="s">"PORT"</span> <span class="s">"3000"</span><span class="p">))</span>
+        <span class="nv">noir-handler</span> <span class="p">(</span><span class="nf">nr-server/gen-handler</span> <span class="p">{</span><span class="ss">:mode</span> <span class="nv">mode</span><span class="p">})]</span>
+    <span class="p">(</span><span class="nf">start-http-server</span>
+      <span class="p">(</span><span class="nf">wrap-ring-handler</span> <span class="nv">noir-handler</span><span class="p">)</span>
+      <span class="p">{</span><span class="ss">:port</span> <span class="nv">port</span> <span class="ss">:websocket</span> <span class="nv">true</span><span class="p">})))</span>
+</pre></div>
+
+<h2>Full Docs</h2>
+
+<p><a href="http://andrewvc.github.com/noir-async/autodoc/">Full API Docs</a> for more examples.</p>
+
+<h2>Apps Using noir-async</h2>
+
+<p><a href="https://github.com/andrewvc/engulf">engulf</a>
+<a href="https://github.com/andrewvc/noir-async-chat">noir-async-chat</a></p>
+
+<h2>License</h2>
+
+<p>Copyright (C) 2011 Andrew Cholakian</p>
+
+<p>Distributed under the Eclipse Public License, the same as Clojure.</p>
+      </section>
+      <footer>
+        <p>This project is maintained by <a href="https://github.com/andrewvc">andrewvc</a></p>
+        <p><small>Hosted on GitHub Pages &mdash; Theme by <a href="https://github.com/orderedlist">orderedlist</a></small></p>
+      </footer>
+    </div>
+    <script src="javascripts/scale.fix.js"></script>
+              <script type="text/javascript">
+            var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");
+            document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.js' type='text/javascript'%3E%3C/script%3E"));
+          </script>
+          <script type="text/javascript">
+            try {
+              var pageTracker = _gat._getTracker("UA-17399267-4");
+            pageTracker._trackPageview();
+            } catch(err) {}
+          </script>
+
+  </body>
+</html>
