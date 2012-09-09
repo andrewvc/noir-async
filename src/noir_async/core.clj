@@ -3,7 +3,8 @@
   (require [lamina.core :as lc]
            [aleph.http :as ah]
            [aleph.formats :as af]
-           [noir.core :as nc]))
+           [noir.core :as nc]
+           [noir.server :as n-srv]))
 
 (defn- format-one-shot
   "Format responses for a one shot response."
@@ -148,3 +149,13 @@
   `(nc/custom-handler ~route {~request-bindings :params}
                       (ah/wrap-aleph-handler
                        (defaleph-handler ~conn-binding ~@body))))
+
+(defn start-server
+  "Starts a new noir/aleph server in the given mode and port. If the views arg is passed in, it will load views from that path via noir-server/load-views"
+  ([mode port]
+     (start-server mode port nil))
+  ([mode port views]
+     (when views (n-srv/load-views views))
+     (ah/start-http-server
+      (ah/wrap-ring-handler (n-srv/gen-handler {:mode mode}))
+      {:port port :websocket true})))

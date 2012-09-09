@@ -4,7 +4,9 @@
         lamina.core
         clojure.test)
   (:require [noir-async.core :as na]
-            [noir.server :as nr-server] ))
+            [noir.server :as nr-server]
+            [aleph.http :as http])
+  (:import java.net.ConnectException))
 
 (def good-response-str "ohai!")
 (def good-response-map {:status 200 :body good-response-str})
@@ -161,3 +163,18 @@
       (testing "server-side closes"
         (na/close-connection c)
         (is (closed? (:request-channel c)))))))
+
+(deftest server-start
+  (testing "Server start"
+    (let [s-port 15882
+          srv (na/start-server :prod s-port)
+          resp @(http/http-request
+                 {:url (str "http://localhost:" s-port) :method :get})]
+      (testing "request status"
+        (is (= 404 (:status resp))))
+      (testing "stoping the server"
+        (is (= :lamina/realized @(srv))) ; Not sure of this stopping it... hence the next test
+        (is (= java.net.ConnectException
+                  (try
+                    @(http/http-request {:timeout 300 :url (str "http://localhost:" s-port) :method :get})
+                    (catch Exception e (class e)))))))))
